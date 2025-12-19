@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equiverse Index - Federated Learning Proposal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #0a0a2a 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .overlay {
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .overlay * {
+            pointer-events: auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #00d9ff, #ff00d9, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #888;
+        }
+
+        .info-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 350px;
+            z-index: 100;
+        }
+
+        .info-panel h3 {
+            color: #00d9ff;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .info-panel p {
+            color: #aaa;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .step-indicator {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .step {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+
+        .step.active {
+            background: linear-gradient(135deg, #00d9ff, #00ff88);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d9ff, #0088ff);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 217, 255, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .legend {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+        }
+
+        .benefits-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #00d9ff;
+            max-width: 500px;
+            text-align: center;
+            z-index: 200;
+            display: none;
+        }
+
+        .benefits-panel h2 {
+            color: #00d9ff;
+            margin-bottom: 20px;
+        }
+
+        .benefit-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .benefit-icon {
+            font-size: 1.5rem;
+        }
+
+        .stats-display {
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px 40px;
+            border-radius: 15px;
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            z-index: 100;
+            display: none;
+            text-align: center;
+        }
+
+        .stats-display h3 {
+            color: #00ff88;
+            font-size: 1.5rem;
+        }
+
+        .stats-display p {
+            color: #888;
+            margin-top: 5px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div class="overlay">
+        <header>
+            <h1>🌐 Equiverse Index</h1>
+            <p class="subtitle">Federated Learning for Industry-Wide Gender Parity Data</p>
+        </header>
+
+        <div class="info-panel" id="infoPanel">
+            <h3 id="stepTitle">🏢 Step 1: Companies Keep Data Private</h3>
+            <p id="stepDesc">Each company maintains their own HR database with sensitive employee data. Gender and role information stays within company firewalls.</p>
+            <div class="step-indicator">
+                <div class="step active" data-step="1">1</div>
+                <div class="step" data-step="2">2</div>
+                <div class="step" data-step="3">3</div>
+                <div class="step" data-step="4">4</div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #00d9ff;"></div>
+                <span>Company Nodes</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ff00d9;"></div>
+                <span>Central Aggregator</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #00ff88;"></div>
+                <span>Aggregate Data Flow</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffaa00;"></div>
+                <span>Published Benchmarks</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-primary" id="nextBtn">Next Step →</button>
+            <button class="btn-secondary" id="resetBtn">Reset Demo</button>
+            <button class="btn-secondary" id="benefitsBtn">View Benefits</button>
+        </div>
+
+        <div class="stats-display" id="statsDisplay">
+            <h3>📊 Sector Benchmark Published</h3>
+            <p>IT Sector: 28.5% Women at Senior Level</p>
+        </div>
+
+        <div class="benefits-panel" id="benefitsPanel">
+            <h2>✨ Benefits of Federated Learning</h2>
+            <div class="benefit-item">
+                <span class="benefit-icon">🔒</span>
+                <span>Privacy Preserved - No individual data leaves the company</span>
+            </div>
+            <div class="benefit-item">
+                <span class="benefit-icon">📊</span>
+                <span>Industry Gets Real Data - Aggregated insights for all</span>
+            </div>
+            <div class="benefit-item">
+                <span class="benefit-icon">📋</span>
+                <span>Policy Gets Evidence - Data-backed recommendations</span>
+            </div>
+            <div class="benefit-item">
+                <span class="benefit-icon">🏆</span>
+                <span>Companies Benchmark Against Peers - Anonymous rankings</span>
+            </div>
+            <button class="btn-primary" onclick="document.getElementById('benefitsPanel').style.display='none'" style="margin-top: 20px;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // Three.js Setup
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        // Camera position
+        camera.position.set(0, 5, 15);
+        camera.lookAt(0, 0, 0);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+
+        const pointLight1 = new THREE.PointLight(0x00d9ff, 1, 100);
+        pointLight1.position.set(10, 10, 10);
+        scene.add(pointLight1);
+
+        const pointLight2 = new THREE.PointLight(0xff00d9, 1, 100);
+        pointLight2.position.set(-10, 10, -10);
+        scene.add(pointLight2);
+
+        // Company data
+        const companies = [
+            { name: 'TCS', color: 0x00d9ff, position: { x: -6, y: 2, z: 0 } },
+            { name: 'Infosys', color: 0x00aaff, position: { x: -3, y: 3, z: 2 } },
+            { name: 'Wipro', color: 0x00ffaa, position: { x: 3, y: 3, z: 2 } },
+            { name: 'HCL', color: 0x00ff88, position: { x: 6, y: 2, z: 0 } },
+            { name: 'HDFC', color: 0xffaa00, position: { x: -4, y: -1, z: -2 } },
+            { name: 'ICICI', color: 0xff8800, position: { x: 4, y: -1, z: -2 } },
+        ];
+
+        // Create company nodes
+        const companyMeshes = [];
+        const companyLabels = [];
+
+        companies.forEach((company, index) => {
+            // Main sphere
+            const geometry = new THREE.IcosahedronGeometry(0.8, 1);
+            const material = new THREE.MeshPhongMaterial({
+                color: company.color,
+                emissive: company.color,
+                emissiveIntensity: 0.3,
+                transparent: true,
+                opacity: 0.9,
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(company.position.x, company.position.y, company.position.z);
+            mesh.userData = { name: company.name, originalY: company.position.y };
+            scene.add(mesh);
+            companyMeshes.push(mesh);
+
+            // Glow effect
+            const glowGeometry = new THREE.IcosahedronGeometry(1.0, 1);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: company.color,
+                transparent: true,
+                opacity: 0.2,
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            glow.position.copy(mesh.position);
+            scene.add(glow);
+
+            // Data cube inside (represents internal data)
+            const cubeGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+            const cubeMaterial = new THREE.MeshPhongMaterial({
+                color: 0xffffff,
+                emissive: 0xffffff,
+                emissiveIntensity: 0.5,
+            });
+            const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+            cube.position.copy(mesh.position);
+            cube.userData = { parentMesh: mesh };
+            scene.add(cube);
+        });
+
+        // Central Aggregator
+        const aggregatorGeometry = new THREE.OctahedronGeometry(1.2, 0);
+        const aggregatorMaterial = new THREE.MeshPhongMaterial({
+            color: 0xff00d9,
+            emissive: 0xff00d9,
+            emissiveIntensity: 0.4,
+            transparent: true,
+            opacity: 0.9,
+        });
+        const aggregator = new THREE.Mesh(aggregatorGeometry, aggregatorMaterial);
+        aggregator.position.set(0, 0, 0);
+        aggregator.scale.set(0.5, 0.5, 0.5);
+        scene.add(aggregator);
+
+        // Aggregator glow ring
+        const ringGeometry = new THREE.TorusGeometry(2, 0.05, 16, 100);
+        const ringMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff00d9,
+            transparent: true,
+            opacity: 0.5,
+        });
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = 0;
+        scene.add(ring);
+
+        // Data particles (for animation)
+        const particles = [];
+        const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+
+        // Connection lines (hidden initially)
+        const lineMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x00ff88, 
+            transparent: true, 
+            opacity: 0 
+        });
+        const lines = [];
+
+        companyMeshes.forEach(mesh => {
+            const points = [mesh.position, aggregator.position];
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            const line = new THREE.Line(lineGeometry, lineMaterial.clone());
+            scene.add(line);
+            lines.push(line);
+        });
+
+        // Output beam (for publishing results)
+        const beamGeometry = new THREE.CylinderGeometry(0.1, 0.5, 5, 8);
+        const beamMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffaa00,
+            transparent: true,
+            opacity: 0,
+        });
+        const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+        beam.position.set(0, 5, 0);
+        scene.add(beam);
+
+        // Stars background
+        const starGeometry = new THREE.BufferGeometry();
+        const starCount = 1000;
+        const positions = new Float32Array(starCount * 3);
+        
+        for (let i = 0; i < starCount * 3; i += 3) {
+            positions[i] = (Math.random() - 0.5) * 100;
+            positions[i + 1] = (Math.random() - 0.5) * 100;
+            positions[i + 2] = (Math.random() - 0.5) * 100;
+        }
+        
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1 });
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+
+        // Animation state
+        let currentStep = 1;
+        const steps = [
+            {
+                title: "🏢 Step 1: Companies Keep Data Private",
+                desc: "Each company maintains their own HR database with sensitive employee data. Gender and role information stays within company firewalls. No raw data is ever shared externally."
+            },
+            {
+                title: "🔧 Step 2: Local Processing",
+                desc: "Companies run the Equiverse tool internally. It analyzes their workforce data and computes LOCAL aggregate statistics (e.g., '28% women at senior level'). Individual employee data never leaves."
+            },
+            {
+                title: "📡 Step 3: Aggregate Sharing",
+                desc: "Only aggregated, anonymized statistics are sent to the central aggregator. The central system sees '28%' - not names, not individuals, just the number. Privacy is mathematically guaranteed."
+            },
+            {
+                title: "📊 Step 4: Benchmark Publication",
+                desc: "NASSCOM/CII publishes sector-wide benchmarks. Companies can see where they stand vs industry average. Policy makers get real data for evidence-based decisions. Everyone wins!"
+            }
+        ];
+
+        // Update UI for current step
+        function updateStepUI() {
+            document.getElementById('stepTitle').textContent = steps[currentStep - 1].title;
+            document.getElementById('stepDesc').textContent = steps[currentStep - 1].desc;
+            
+            document.querySelectorAll('.step').forEach((el, i) => {
+                el.classList.toggle('active', i < currentStep);
+            });
+        }
+
+        // Animation functions
+        function animateStep1() {
+            // Reset everything
+            gsap.to(aggregator.scale, { x: 0.5, y: 0.5, z: 0.5, duration: 0.5 });
+            lines.forEach(line => {
+                gsap.to(line.material, { opacity: 0, duration: 0.5 });
+            });
+            gsap.to(beamMaterial, { opacity: 0, duration: 0.5 });
+            document.getElementById('statsDisplay').style.display = 'none';
+
+            // Highlight company nodes
+            companyMeshes.forEach((mesh, i) => {
+                gsap.to(mesh.scale, { 
+                    x: 1.2, y: 1.2, z: 1.2, 
+                    duration: 0.5, 
+                    delay: i * 0.1,
+                    yoyo: true,
+                    repeat: 1
+                });
+            });
+        }
+
+        function animateStep2() {
+            // Pulsing effect on companies (processing)
+            companyMeshes.forEach((mesh, i) => {
+                gsap.to(mesh.material, {
+                    emissiveIntensity: 0.8,
+                    duration: 0.5,
+                    delay: i * 0.15,
+                    yoyo: true,
+                    repeat: 3
+                });
+                
+                // Rotate internal cubes
+                const cube = scene.children.find(c => c.userData.parentMesh === mesh);
+                if (cube) {
+                    gsap.to(cube.rotation, {
+                        x: Math.PI * 2,
+                        y: Math.PI * 2,
+                        duration: 2,
+                        delay: i * 0.15
+                    });
+                }
+            });
+        }
+
+        function animateStep3() {
+            // Show connection lines and animate data flow
+            lines.forEach((line, i) => {
+                gsap.to(line.material, { 
+                    opacity: 0.8, 
+                    duration: 0.5,
+                    delay: i * 0.2 
+                });
+            });
+
+            // Grow aggregator
+            gsap.to(aggregator.scale, { 
+                x: 1.5, y: 1.5, z: 1.5, 
+                duration: 1,
+                delay: 1 
+            });
+
+            // Create flowing particles
+            companyMeshes.forEach((mesh, i) => {
+                setTimeout(() => {
+                    createDataParticle(mesh.position, aggregator.position);
+                }, i * 300);
+            });
+        }
+
+        function animateStep4() {
+            // Beam animation (publishing)
+            gsap.to(beamMaterial, { opacity: 0.7, duration: 0.5 });
+            gsap.to(beam.scale, { 
+                x: 2, z: 2, 
+                duration: 1,
+                yoyo: true,
+                repeat: 2
+            });
+
+            // Show stats
+            setTimeout(() => {
+                document.getElementById('statsDisplay').style.display = 'block';
+                gsap.from('#statsDisplay', { scale: 0, duration: 0.5 });
+            }, 500);
+
+            // Ring expansion
+            gsap.to(ring.scale, { 
+                x: 2, y: 2, z: 2, 
+                duration: 2 
+            });
+        }
+
+        function createDataParticle(start, end) {
+            const particleMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ff88,
+                transparent: true,
+                opacity: 1
+            });
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            particle.position.copy(start);
+            scene.add(particle);
+
+            gsap.to(particle.position, {
+                x: end.x,
+                y: end.y,
+                z: end.z,
+                duration: 1.5,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    scene.remove(particle);
+                }
+            });
+
+            gsap.to(particleMaterial, {
+                opacity: 0,
+                duration: 1.5
+            });
+        }
+
+        // Event listeners
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            currentStep = currentStep >= 4 ? 1 : currentStep + 1;
+            updateStepUI();
+
+            switch(currentStep) {
+                case 1: animateStep1(); break;
+                case 2: animateStep2(); break;
+                case 3: animateStep3(); break;
+                case 4: animateStep4(); break;
+            }
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            currentStep = 1;
+            updateStepUI();
+            animateStep1();
+        });
+
+        document.getElementById('benefitsBtn').addEventListener('click', () => {
+            document.getElementById('benefitsPanel').style.display = 'block';
+            gsap.from('#benefitsPanel', { scale: 0, duration: 0.3 });
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate company nodes
+            companyMeshes.forEach((mesh, i) => {
+                mesh.rotation.y += 0.005;
+                mesh.position.y = mesh.userData.originalY + Math.sin(Date.now() * 0.001 + i) * 0.1;
+            });
+
+            // Rotate aggregator
+            aggregator.rotation.y += 0.01;
+            aggregator.rotation.x += 0.005;
+
+            // Rotate ring
+            ring.rotation.z += 0.005;
+
+            // Rotate stars slowly
+            stars.rotation.y += 0.0002;
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Mouse interaction for camera
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+            mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+            
+            gsap.to(camera.position, {
+                x: mouseX * 2,
+                y: 5 - mouseY,
+                duration: 1
+            });
+            camera.lookAt(0, 0, 0);
+        });
+
+        // Start animation
+        animate();
+        updateStepUI();
+    </script>
+</body>
+</html>

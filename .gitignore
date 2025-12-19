@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Data files (don't commit raw data)
+data/raw_pdfs/*.pdf
+data/extracted_tables/*.json
+data/processed/*.json
+data/final_index/*.db
+data/linkedin_research/
+
+# Keep folder structure
+!data/raw_pdfs/.gitkeep
+!data/extracted_tables/.gitkeep
+!data/processed/.gitkeep
+!data/final_index/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Credentials (NEVER commit)
+*.env
+.env
+credentials.json
+*_credentials*
+*_secret*
+
+# Logs
+*.log
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
