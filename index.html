@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equiverse - Federated Data Flow</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+        #canvas-container { 
+            width: 100vw; 
+            height: 100vh; 
+            position: relative;
+        }
+        
+        /* Step indicator */
+        #step-indicator {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 15px 40px;
+            border-radius: 50px;
+            border: 2px solid #00ffaa;
+            z-index: 100;
+        }
+        #step-indicator h2 {
+            color: #00ffaa;
+            font-size: 18px;
+            text-align: center;
+        }
+        #step-indicator p {
+            color: #ffffff;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+        
+        /* Controls */
+        #controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #00ffaa, #00aa77);
+            color: #000;
+            font-weight: bold;
+        }
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0,255,170,0.5);
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        /* Legend */
+        #legend {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px 20px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+        #legend h3 {
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            font-size: 12px;
+            color: #ccc;
+        }
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+        
+        /* Data preview popup */
+        #data-preview {
+            position: fixed;
+            left: 20px;
+            top: 100px;
+            background: rgba(0,0,0,0.9);
+            border: 1px solid #00ffaa;
+            border-radius: 10px;
+            padding: 15px;
+            max-width: 300px;
+            z-index: 100;
+            display: none;
+        }
+        #data-preview h4 {
+            color: #00ffaa;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        #data-preview pre {
+            color: #aaffcc;
+            font-size: 11px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* Progress bar */
+        #progress-container {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            z-index: 100;
+        }
+        #progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        #progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00ffaa, #00aaff);
+            transition: width 0.5s;
+        }
+        #progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+        }
+        .progress-step {
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+            text-align: center;
+        }
+        .progress-step.active {
+            color: #00ffaa;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div id="step-indicator">
+        <h2 id="step-title">🏢 EQUIVERSE INDEX</h2>
+        <p id="step-desc">Click "Start Animation" to see the data flow</p>
+    </div>
+    
+    <div id="legend">
+        <h3>LEGEND</h3>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #00aaff;"></div>
+            <span>Central Server</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff6600;"></div>
+            <span>TCS</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff0066;"></div>
+            <span>Wipro</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #aa00ff;"></div>
+            <span>Infosys</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #00ff66;"></div>
+            <span>HCL Tech</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffaa00;"></div>
+            <span>Tech Mahindra</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #00ffaa;"></div>
+            <span>Code Package</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffff00;"></div>
+            <span>JSON Result</span>
+        </div>
+    </div>
+    
+    <div id="data-preview">
+        <h4 id="preview-title">Data Preview</h4>
+        <pre id="preview-content"></pre>
+    </div>
+    
+    <div id="progress-container">
+        <div id="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+        <div id="progress-steps">
+            <span class="progress-step active">Start</span>
+            <span class="progress-step">Send Code</span>
+            <span class="progress-step">Process</span>
+            <span class="progress-step">Return Data</span>
+            <span class="progress-step">Union</span>
+            <span class="progress-step">Dashboard</span>
+        </div>
+    </div>
+    
+    <div id="controls">
+        <button class="btn btn-primary" id="startBtn">▶ Start Animation</button>
+        <button class="btn btn-secondary" id="resetBtn">↺ Reset</button>
+    </div>
+    
+    <script>
+        // Scene setup
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x0a0a1a, 1);
+        container.appendChild(renderer.domElement);
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0x00ffaa, 1, 100);
+        pointLight.position.set(0, 10, 10);
+        scene.add(pointLight);
+        
+        // Camera position
+        camera.position.set(0, 8, 20);
+        camera.lookAt(0, 0, 0);
+        
+        // Companies data
+        const companies = [
+            { name: 'TCS', color: 0xff6600, position: { x: -8, y: 0, z: 4 } },
+            { name: 'Wipro', color: 0xff0066, position: { x: -4, y: 0, z: 6 } },
+            { name: 'Infosys', color: 0xaa00ff, position: { x: 0, y: 0, z: 7 } },
+            { name: 'HCL', color: 0x00ff66, position: { x: 4, y: 0, z: 6 } },
+            { name: 'TechM', color: 0xffaa00, position: { x: 8, y: 0, z: 4 } }
+        ];
+        
+        // Create central server
+        const serverGeometry = new THREE.BoxGeometry(3, 4, 3);
+        const serverMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x00aaff,
+            emissive: 0x003366,
+            shininess: 100
+        });
+        const server = new THREE.Mesh(serverGeometry, serverMaterial);
+        server.position.set(0, 2, -5);
+        scene.add(server);
+        
+        // Server glow
+        const serverGlow = new THREE.Mesh(
+            new THREE.BoxGeometry(3.5, 4.5, 3.5),
+            new THREE.MeshBasicMaterial({ color: 0x00aaff, transparent: true, opacity: 0.2 })
+        );
+        serverGlow.position.copy(server.position);
+        scene.add(serverGlow);
+        
+        // Create company buildings
+        const companyMeshes = [];
+        const companyLabels = [];
+        
+        companies.forEach((company, i) => {
+            // Building
+            const buildingGeo = new THREE.BoxGeometry(2, 3, 2);
+            const buildingMat = new THREE.MeshPhongMaterial({ 
+                color: company.color,
+                emissive: company.color,
+                emissiveIntensity: 0.2
+            });
+            const building = new THREE.Mesh(buildingGeo, buildingMat);
+            building.position.set(company.position.x, 1.5, company.position.z);
+            scene.add(building);
+            companyMeshes.push(building);
+            
+            // Glow effect
+            const glow = new THREE.Mesh(
+                new THREE.BoxGeometry(2.3, 3.3, 2.3),
+                new THREE.MeshBasicMaterial({ color: company.color, transparent: true, opacity: 0.15 })
+            );
+            glow.position.copy(building.position);
+            scene.add(glow);
+        });
+        
+        // Create code packages (initially invisible)
+        const codePackages = [];
+        companies.forEach((company, i) => {
+            const packageGeo = new THREE.OctahedronGeometry(0.4);
+            const packageMat = new THREE.MeshPhongMaterial({ 
+                color: 0x00ffaa,
+                emissive: 0x00ffaa,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0
+            });
+            const pkg = new THREE.Mesh(packageGeo, packageMat);
+            pkg.position.copy(server.position);
+            scene.add(pkg);
+            codePackages.push(pkg);
+        });
+        
+        // Create JSON result cubes (initially invisible)
+        const jsonCubes = [];
+        companies.forEach((company, i) => {
+            const cubeGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            const cubeMat = new THREE.MeshPhongMaterial({ 
+                color: 0xffff00,
+                emissive: 0xffaa00,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0
+            });
+            const cube = new THREE.Mesh(cubeGeo, cubeMat);
+            cube.position.set(company.position.x, 1.5, company.position.z);
+            scene.add(cube);
+            jsonCubes.push(cube);
+        });
+        
+        // Create dashboard plane (initially invisible)
+        const dashboardGeo = new THREE.PlaneGeometry(8, 5);
+        const dashboardMat = new THREE.MeshBasicMaterial({ 
+            color: 0x001133,
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide
+        });
+        const dashboard = new THREE.Mesh(dashboardGeo, dashboardMat);
+        dashboard.position.set(0, 6, -5);
+        scene.add(dashboard);
+        
+        // Dashboard bars
+        const dashboardBars = [];
+        const tierColors = [0xff0000, 0xff6600, 0xffaa00, 0xffff00, 0xaaff00, 0x00ff00];
+        const tierNames = ['Board', 'C-Suite', 'Senior', 'Middle', 'Junior', 'Entry'];
+        for (let i = 0; i < 6; i++) {
+            const barGeo = new THREE.BoxGeometry(0.8, 0, 0.3);
+            const barMat = new THREE.MeshPhongMaterial({ 
+                color: tierColors[i],
+                transparent: true,
+                opacity: 0
+            });
+            const bar = new THREE.Mesh(barGeo, barMat);
+            bar.position.set(-3 + i * 1.2, 4.5, -4.9);
+            scene.add(bar);
+            dashboardBars.push(bar);
+        }
+        
+        // Create data streams (particle lines)
+        const particles = [];
+        
+        // Floor grid
+        const gridHelper = new THREE.GridHelper(30, 30, 0x003333, 0x002222);
+        scene.add(gridHelper);
+        
+        // Animation state
+        let animationStep = 0;
+        let isAnimating = false;
+        
+        // Sample JSON data for preview
+        const sampleJsonData = {
+            'TCS': { board: {m: 9, f: 3}, csuite: {m: 15, f: 4}, senior: {m: 180, f: 55}, middle: {m: 950, f: 380} },
+            'Wipro': { board: {m: 8, f: 2}, csuite: {m: 12, f: 3}, senior: {m: 140, f: 48}, middle: {m: 720, f: 310} },
+            'Infosys': { board: {m: 7, f: 4}, csuite: {m: 14, f: 5}, senior: {m: 160, f: 60}, middle: {m: 880, f: 400} },
+            'HCL': { board: {m: 10, f: 2}, csuite: {m: 11, f: 3}, senior: {m: 130, f: 42}, middle: {m: 650, f: 280} },
+            'TechM': { board: {m: 8, f: 2}, csuite: {m: 10, f: 2}, senior: {m: 100, f: 35}, middle: {m: 500, f: 220} }
+        };
+        
+        // UI Elements
+        const stepTitle = document.getElementById('step-title');
+        const stepDesc = document.getElementById('step-desc');
+        const progressFill = document.getElementById('progress-fill');
+        const progressSteps = document.querySelectorAll('.progress-step');
+        const dataPreview = document.getElementById('data-preview');
+        const previewTitle = document.getElementById('preview-title');
+        const previewContent = document.getElementById('preview-content');
+        
+        function updateStep(step, title, desc, progress) {
+            stepTitle.textContent = title;
+            stepDesc.textContent = desc;
+            progressFill.style.width = progress + '%';
+            progressSteps.forEach((el, i) => {
+                el.classList.toggle('active', i <= step);
+            });
+        }
+        
+        function showDataPreview(title, data) {
+            dataPreview.style.display = 'block';
+            previewTitle.textContent = title;
+            previewContent.textContent = JSON.stringify(data, null, 2);
+            gsap.from(dataPreview, { opacity: 0, x: -20, duration: 0.3 });
+        }
+        
+        function hideDataPreview() {
+            gsap.to(dataPreview, { opacity: 0, x: -20, duration: 0.3, onComplete: () => {
+                dataPreview.style.display = 'none';
+            }});
+        }
+        
+        // Animation functions
+        function step1_sendCode() {
+            updateStep(1, '📦 STEP 1: Server Sends Code', 'Sending analytics code to each company...', 20);
+            
+            showDataPreview('Code Package', {
+                type: 'analytics_script',
+                version: '1.0',
+                functions: ['count_by_gender', 'count_by_tier', 'generate_summary']
+            });
+            
+            // Animate code packages from server to companies
+            codePackages.forEach((pkg, i) => {
+                const company = companies[i];
+                const delay = i * 0.3;
+                
+                // Make visible
+                gsap.to(pkg.material, { opacity: 1, duration: 0.3, delay });
+                
+                // Rotate continuously
+                gsap.to(pkg.rotation, { y: Math.PI * 4, duration: 2, delay, ease: 'none' });
+                
+                // Move to company
+                gsap.to(pkg.position, {
+                    x: company.position.x,
+                    y: 1.5,
+                    z: company.position.z,
+                    duration: 1.5,
+                    delay: delay + 0.3,
+                    ease: 'power2.inOut',
+                    onComplete: () => {
+                        // Flash company building
+                        gsap.to(companyMeshes[i].material, { 
+                            emissiveIntensity: 0.8, 
+                            duration: 0.2,
+                            yoyo: true,
+                            repeat: 3
+                        });
+                        
+                        if (i === companies.length - 1) {
+                            setTimeout(step2_processData, 1000);
+                        }
+                    }
+                });
+            });
+        }
+        
+        function step2_processData() {
+            updateStep(2, '⚙️ STEP 2: Companies Process Data', 'Each company runs the code on their HR data...', 40);
+            
+            hideDataPreview();
+            
+            // Pulse each company
+            companyMeshes.forEach((mesh, i) => {
+                const company = companies[i];
+                
+                gsap.to(mesh.scale, {
+                    x: 1.2, y: 1.2, z: 1.2,
+                    duration: 0.5,
+                    delay: i * 0.4,
+                    yoyo: true,
+                    repeat: 3,
+                    ease: 'power2.inOut'
+                });
+                
+                // Hide code package
+                gsap.to(codePackages[i].material, { 
+                    opacity: 0, 
+                    duration: 0.3, 
+                    delay: i * 0.4 
+                });
+                
+                // Show processing effect
+                setTimeout(() => {
+                    showDataPreview(`${company.name} Processing`, {
+                        status: 'analyzing',
+                        records: Math.floor(Math.random() * 50000) + 10000,
+                        tiers_found: 6
+                    });
+                }, i * 400);
+            });
+            
+            setTimeout(step3_returnJson, 3500);
+        }
+        
+        function step3_returnJson() {
+            updateStep(3, '📤 STEP 3: Companies Return JSON', 'Sending only summary data (no employee names)...', 60);
+            
+            // Show each company's JSON result
+            jsonCubes.forEach((cube, i) => {
+                const company = companies[i];
+                const delay = i * 0.5;
+                
+                // Show JSON cube
+                gsap.to(cube.material, { opacity: 1, duration: 0.3, delay });
+                
+                // Rotate cube
+                gsap.to(cube.rotation, { 
+                    x: Math.PI * 2, 
+                    y: Math.PI * 2, 
+                    duration: 2, 
+                    delay,
+                    ease: 'none'
+                });
+                
+                // Show data preview
+                setTimeout(() => {
+                    showDataPreview(`${company.name} → JSON`, sampleJsonData[company.name]);
+                }, delay * 1000);
+                
+                // Move to server
+                gsap.to(cube.position, {
+                    x: server.position.x,
+                    y: server.position.y,
+                    z: server.position.z,
+                    duration: 1.5,
+                    delay: delay + 0.5,
+                    ease: 'power2.inOut',
+                    onComplete: () => {
+                        // Flash server
+                        gsap.to(server.material, { 
+                            emissiveIntensity: 0.8, 
+                            duration: 0.2,
+                            yoyo: true,
+                            repeat: 1
+                        });
+                        
+                        // Shrink cube into server
+                        gsap.to(cube.scale, { x: 0, y: 0, z: 0, duration: 0.3 });
+                        
+                        if (i === companies.length - 1) {
+                            setTimeout(step4_unionData, 1000);
+                        }
+                    }
+                });
+            });
+        }
+        
+        function step4_unionData() {
+            updateStep(4, '🔗 STEP 4: Server UNIONS Data', 'Combining all company results into one dataset...', 80);
+            
+            showDataPreview('Combined Dataset', {
+                total_companies: 5,
+                total_records: '5 companies × 6 tiers = 30 rows',
+                columns: ['company', 'tier', 'male', 'female', 'female_pct'],
+                sample: [
+                    { company: 'TCS', tier: 'Board', female_pct: '25%' },
+                    { company: 'Wipro', tier: 'Board', female_pct: '20%' },
+                    { company: 'Infosys', tier: 'Board', female_pct: '36%' }
+                ]
+            });
+            
+            // Server processing effect
+            gsap.to(server.scale, {
+                x: 1.3, y: 1.3, z: 1.3,
+                duration: 0.5,
+                yoyo: true,
+                repeat: 5,
+                ease: 'power2.inOut'
+            });
+            
+            gsap.to(serverGlow.material, {
+                opacity: 0.5,
+                duration: 0.3,
+                yoyo: true,
+                repeat: 5
+            });
+            
+            setTimeout(step5_showDashboard, 3000);
+        }
+        
+        function step5_showDashboard() {
+            updateStep(5, '📊 STEP 5: Dashboard Analysis', 'Visualizing gender distribution across all tiers...', 100);
+            
+            hideDataPreview();
+            
+            // Move camera up to see dashboard
+            gsap.to(camera.position, {
+                y: 10,
+                z: 15,
+                duration: 2,
+                ease: 'power2.inOut'
+            });
+            
+            // Show dashboard
+            gsap.to(dashboardMat, { opacity: 0.9, duration: 1 });
+            
+            // Animate bars growing
+            const femalePercentages = [15, 18, 22, 28, 35, 42]; // Typical leaky pipeline
+            
+            dashboardBars.forEach((bar, i) => {
+                const height = femalePercentages[i] / 10;
+                
+                gsap.to(bar.material, { opacity: 1, duration: 0.5, delay: i * 0.2 });
+                gsap.to(bar.scale, {
+                    y: height,
+                    duration: 1,
+                    delay: 0.5 + i * 0.2,
+                    ease: 'elastic.out(1, 0.5)'
+                });
+                gsap.to(bar.position, {
+                    y: 4.5 + height / 2,
+                    duration: 1,
+                    delay: 0.5 + i * 0.2,
+                    ease: 'elastic.out(1, 0.5)'
+                });
+            });
+            
+            // Show final insight
+            setTimeout(() => {
+                showDataPreview('🎯 KEY INSIGHT', {
+                    finding: 'Biggest drop-off: Senior → C-Suite',
+                    board_avg: '15% women',
+                    entry_avg: '42% women',
+                    gap: '27 percentage points',
+                    recommendation: 'Focus retention at Senior Management level'
+                });
+            }, 2500);
+        }
+        
+        function startAnimation() {
+            if (isAnimating) return;
+            isAnimating = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('startBtn').textContent = '⏳ Running...';
+            
+            updateStep(0, '🚀 STARTING ANIMATION', 'Watch how data flows without exposing employee info...', 0);
+            
+            setTimeout(step1_sendCode, 1500);
+        }
+        
+        function resetAnimation() {
+            isAnimating = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('startBtn').textContent = '▶ Start Animation';
+            
+            // Reset camera
+            gsap.to(camera.position, { x: 0, y: 8, z: 20, duration: 1 });
+            
+            // Reset UI
+            updateStep(0, '🏢 EQUIVERSE INDEX', 'Click "Start Animation" to see the data flow', 0);
+            hideDataPreview();
+            
+            // Reset code packages
+            codePackages.forEach(pkg => {
+                pkg.position.copy(server.position);
+                pkg.material.opacity = 0;
+                pkg.rotation.set(0, 0, 0);
+            });
+            
+            // Reset JSON cubes
+            jsonCubes.forEach((cube, i) => {
+                cube.position.set(companies[i].position.x, 1.5, companies[i].position.z);
+                cube.material.opacity = 0;
+                cube.scale.set(1, 1, 1);
+                cube.rotation.set(0, 0, 0);
+            });
+            
+            // Reset dashboard
+            dashboardMat.opacity = 0;
+            dashboardBars.forEach(bar => {
+                bar.material.opacity = 0;
+                bar.scale.y = 0;
+                bar.position.y = 4.5;
+            });
+            
+            // Reset server
+            server.scale.set(1, 1, 1);
+        }
+        
+        // Event listeners
+        document.getElementById('startBtn').addEventListener('click', startAnimation);
+        document.getElementById('resetBtn').addEventListener('click', resetAnimation);
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Gentle floating for buildings
+            companyMeshes.forEach((mesh, i) => {
+                mesh.position.y = 1.5 + Math.sin(Date.now() * 0.001 + i) * 0.05;
+            });
+            
+            // Server pulse
+            server.position.y = 2 + Math.sin(Date.now() * 0.002) * 0.1;
+            serverGlow.position.y = server.position.y;
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+        
+        // Handle resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

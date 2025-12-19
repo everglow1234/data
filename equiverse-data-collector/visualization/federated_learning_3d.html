@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equiverse - Federated Learning Explained</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 70vh;
+            position: relative;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        /* Step indicator */
+        .step-indicator {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .step-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .step-dot.active {
+            background: #00d9ff;
+            box-shadow: 0 0 20px #00d9ff;
+        }
+        
+        .step-dot:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Text overlay */
+        .text-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .step-title {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+            color: #00d9ff;
+            text-shadow: 0 0 20px rgba(0,217,255,0.5);
+        }
+        
+        .step-description {
+            font-size: 1.3em;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        /* Navigation */
+        .nav-buttons {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+        }
+        
+        .nav-btn {
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        
+        .nav-btn.prev {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .nav-btn.next {
+            background: linear-gradient(135deg, #00d9ff, #00ff88);
+            color: #1a1a2e;
+        }
+        
+        .nav-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0,217,255,0.4);
+        }
+        
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Data packet styling */
+        .data-label {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid #00d9ff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.8em;
+            font-family: monospace;
+            white-space: pre;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 50;
+        }
+        
+        /* Company labels */
+        .company-label {
+            position: absolute;
+            background: rgba(0,217,255,0.2);
+            border: 1px solid #00d9ff;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            pointer-events: none;
+            transform: translateX(-50%);
+        }
+        
+        /* Legend */
+        .legend {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            z-index: 50;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        
+        /* Intro screen */
+        .intro-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .intro-screen h1 {
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .intro-screen p {
+            font-size: 1.4em;
+            opacity: 0.8;
+            max-width: 600px;
+            margin-bottom: 40px;
+        }
+        
+        .start-btn {
+            padding: 20px 60px;
+            font-size: 1.3em;
+            background: linear-gradient(135deg, #00d9ff, #00ff88);
+            border: none;
+            border-radius: 40px;
+            color: #1a1a2e;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .start-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 40px rgba(0,217,255,0.5);
+        }
+        
+        /* Result panel */
+        .result-panel {
+            position: fixed;
+            right: -400px;
+            top: 100px;
+            width: 350px;
+            background: rgba(0,0,0,0.9);
+            border: 1px solid #00d9ff;
+            border-radius: 15px;
+            padding: 20px;
+            z-index: 100;
+            transition: right 0.5s ease;
+        }
+        
+        .result-panel.visible {
+            right: 20px;
+        }
+        
+        .result-panel h3 {
+            color: #00d9ff;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
+        }
+        
+        .result-table th, .result-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .result-table th {
+            color: #00ff88;
+        }
+        
+        .female-pct {
+            color: #ff6b9d;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Intro Screen -->
+    <div class="intro-screen" id="introScreen">
+        <h1>🏢 Equiverse Index</h1>
+        <p>See how we collect gender data from companies<br><strong>without exposing their private employee information</strong></p>
+        <button class="start-btn" onclick="startPresentation()">Start the Journey →</button>
+    </div>
+
+    <!-- Step Indicator -->
+    <div class="step-indicator" id="stepIndicator" style="display: none;">
+        <div class="step-dot active" onclick="goToStep(0)">1</div>
+        <div class="step-dot" onclick="goToStep(1)">2</div>
+        <div class="step-dot" onclick="goToStep(2)">3</div>
+        <div class="step-dot" onclick="goToStep(3)">4</div>
+        <div class="step-dot" onclick="goToStep(4)">5</div>
+    </div>
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container">
+        <div class="text-overlay" id="textOverlay">
+            <h2 class="step-title" id="stepTitle">The Problem</h2>
+            <p class="step-description" id="stepDesc">Companies have employee data, but they won't share it with anyone.</p>
+        </div>
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div class="nav-buttons" id="navButtons" style="display: none;">
+        <button class="nav-btn prev" id="prevBtn" onclick="prevStep()">← Back</button>
+        <button class="nav-btn next" id="nextBtn" onclick="nextStep()">Next →</button>
+    </div>
+
+    <!-- Result Panel (shows at step 5) -->
+    <div class="result-panel" id="resultPanel">
+        <h3>📊 Combined Dataset Analysis</h3>
+        <table class="result-table">
+            <tr>
+                <th>Company</th>
+                <th>Level</th>
+                <th>Women %</th>
+            </tr>
+            <tr>
+                <td>TCS</td>
+                <td>Board</td>
+                <td class="female-pct">20%</td>
+            </tr>
+            <tr>
+                <td>TCS</td>
+                <td>C-Suite</td>
+                <td class="female-pct">18%</td>
+            </tr>
+            <tr>
+                <td>Infosys</td>
+                <td>Board</td>
+                <td class="female-pct">30%</td>
+            </tr>
+            <tr>
+                <td>Infosys</td>
+                <td>C-Suite</td>
+                <td class="female-pct">25%</td>
+            </tr>
+            <tr>
+                <td>Wipro</td>
+                <td>Board</td>
+                <td class="female-pct">15%</td>
+            </tr>
+            <tr>
+                <td>Wipro</td>
+                <td>C-Suite</td>
+                <td class="female-pct">22%</td>
+            </tr>
+        </table>
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+            <strong style="color: #00ff88;">Insight:</strong><br>
+            <span style="font-size: 0.9em;">Industry avg at C-Suite: <strong class="female-pct">21.7%</strong> women</span>
+        </div>
+    </div>
+
+    <script>
+        // Three.js setup
+        let scene, camera, renderer;
+        let companies = [];
+        let server;
+        let dataPackets = [];
+        let codePackets = [];
+        let currentStep = 0;
+        
+        // Step content
+        const steps = [
+            {
+                title: "📊 The Problem",
+                desc: "Companies have detailed employee data (names, gender, job levels). But they WON'T share it — too risky, too competitive, too private.",
+                camera: { x: 0, y: 8, z: 20 }
+            },
+            {
+                title: "💻 We Give Them Code",
+                desc: "We create a small program (the blue cubes). We GIVE this code to each company. It runs on THEIR computers, inside THEIR firewall.",
+                camera: { x: 0, y: 10, z: 18 }
+            },
+            {
+                title: "⚙️ Code Runs Locally",
+                desc: "The code reads their HR data and counts: 'How many men? How many women? At each level?' — Just counting. No names leave the building.",
+                camera: { x: 5, y: 5, z: 15 }
+            },
+            {
+                title: "📤 They Send Small Results",
+                desc: "Each company sends a TINY file — just 6 numbers: gender counts per level. No names, no salaries, no individual data. Just: 'Board: 8 men, 2 women'",
+                camera: { x: 0, y: 12, z: 16 }
+            },
+            {
+                title: "🔗 We UNION & Analyze",
+                desc: "We DON'T average the data — we COMBINE it into one big dataset. Now we can see patterns across ALL companies. First-ever industry-wide gender map!",
+                camera: { x: 0, y: 15, z: 20 }
+            }
+        ];
+        
+        function init() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            scene.fog = new THREE.Fog(0x1a1a2e, 20, 50);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 100);
+            camera.position.set(0, 8, 20);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+            
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 10);
+            scene.add(directionalLight);
+            
+            const pointLight = new THREE.PointLight(0x00d9ff, 1, 50);
+            pointLight.position.set(0, 10, 0);
+            scene.add(pointLight);
+            
+            // Create ground/grid
+            const gridHelper = new THREE.GridHelper(40, 40, 0x00d9ff, 0x0a0a1a);
+            gridHelper.position.y = -2;
+            scene.add(gridHelper);
+            
+            // Create companies (buildings)
+            createCompanies();
+            
+            // Create central server
+            createServer();
+            
+            // Handle resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Animation loop
+            animate();
+        }
+        
+        function createCompanies() {
+            const companyNames = ['TCS', 'Infosys', 'Wipro', 'HCL', 'Tech M'];
+            const positions = [
+                { x: -10, z: -5 },
+                { x: -5, z: -8 },
+                { x: 5, z: -8 },
+                { x: 10, z: -5 },
+                { x: 0, z: -10 }
+            ];
+            
+            const colors = [0x4a90d9, 0x7b68ee, 0x20b2aa, 0xf4a460, 0xda70d6];
+            
+            positions.forEach((pos, i) => {
+                // Building
+                const geometry = new THREE.BoxGeometry(2.5, 4, 2.5);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: colors[i],
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const building = new THREE.Mesh(geometry, material);
+                building.position.set(pos.x, 0, pos.z);
+                scene.add(building);
+                
+                // Building windows (emissive lines)
+                const edgesGeometry = new THREE.EdgesGeometry(geometry);
+                const edgesMaterial = new THREE.LineBasicMaterial({ color: 0x00d9ff });
+                const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+                edges.position.copy(building.position);
+                scene.add(edges);
+                
+                // Roof
+                const roofGeometry = new THREE.ConeGeometry(2, 1.5, 4);
+                const roofMaterial = new THREE.MeshPhongMaterial({ color: colors[i] });
+                const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+                roof.position.set(pos.x, 2.75, pos.z);
+                roof.rotation.y = Math.PI / 4;
+                scene.add(roof);
+                
+                // Data inside (represents employee data - hidden)
+                const dataGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+                const dataMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xff6b6b,
+                    emissive: 0xff6b6b,
+                    emissiveIntensity: 0.3
+                });
+                const dataOrb = new THREE.Mesh(dataGeometry, dataMaterial);
+                dataOrb.position.set(pos.x, 0, pos.z);
+                dataOrb.visible = true;
+                scene.add(dataOrb);
+                
+                // Code box (blue cube - appears in step 2)
+                const codeGeometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+                const codeMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x00d9ff,
+                    emissive: 0x00d9ff,
+                    emissiveIntensity: 0.5,
+                    transparent: true,
+                    opacity: 0
+                });
+                const codeBox = new THREE.Mesh(codeGeometry, codeMaterial);
+                codeBox.position.set(pos.x, 5, pos.z);
+                scene.add(codeBox);
+                
+                // Result packet (green - appears in step 4)
+                const resultGeometry = new THREE.OctahedronGeometry(0.4);
+                const resultMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x00ff88,
+                    emissive: 0x00ff88,
+                    emissiveIntensity: 0.5,
+                    transparent: true,
+                    opacity: 0
+                });
+                const resultPacket = new THREE.Mesh(resultGeometry, resultMaterial);
+                resultPacket.position.set(pos.x, 0, pos.z);
+                scene.add(resultPacket);
+                
+                companies.push({
+                    name: companyNames[i],
+                    building,
+                    edges,
+                    roof,
+                    dataOrb,
+                    codeBox,
+                    resultPacket,
+                    position: pos
+                });
+            });
+        }
+        
+        function createServer() {
+            // Central server (cylinder)
+            const serverGeometry = new THREE.CylinderGeometry(2, 2.5, 3, 8);
+            const serverMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x00ff88,
+                emissive: 0x00ff88,
+                emissiveIntensity: 0.2,
+                transparent: true,
+                opacity: 0.9
+            });
+            server = new THREE.Mesh(serverGeometry, serverMaterial);
+            server.position.set(0, 0, 5);
+            scene.add(server);
+            
+            // Server glow ring
+            const ringGeometry = new THREE.TorusGeometry(3, 0.1, 16, 32);
+            const ringMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x00ff88,
+                transparent: true,
+                opacity: 0.5
+            });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            ring.position.set(0, -1.5, 5);
+            ring.rotation.x = Math.PI / 2;
+            scene.add(ring);
+            
+            // Server label
+            const labelGeometry = new THREE.PlaneGeometry(4, 1);
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 32px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('CENTRAL SERVER', 128, 42);
+            const labelTexture = new THREE.CanvasTexture(canvas);
+            const labelMaterial = new THREE.MeshBasicMaterial({ 
+                map: labelTexture,
+                transparent: true
+            });
+            const label = new THREE.Mesh(labelGeometry, labelMaterial);
+            label.position.set(0, 2.5, 5);
+            scene.add(label);
+            
+            server.ring = ring;
+            server.label = label;
+        }
+        
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Rotate data orbs
+            companies.forEach(company => {
+                company.dataOrb.rotation.y += 0.02;
+                company.codeBox.rotation.y += 0.03;
+                company.codeBox.rotation.x += 0.02;
+                company.resultPacket.rotation.y += 0.04;
+                company.resultPacket.rotation.z += 0.02;
+            });
+            
+            // Pulse server ring
+            if (server && server.ring) {
+                server.ring.rotation.z += 0.01;
+                const scale = 1 + Math.sin(Date.now() * 0.002) * 0.1;
+                server.ring.scale.set(scale, scale, 1);
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // =====================
+        // STEP ANIMATIONS
+        // =====================
+        
+        function animateStep(stepIndex) {
+            const step = steps[stepIndex];
+            
+            // Update text
+            gsap.to('#stepTitle', { opacity: 0, duration: 0.3, onComplete: () => {
+                document.getElementById('stepTitle').textContent = step.title;
+                gsap.to('#stepTitle', { opacity: 1, duration: 0.3 });
+            }});
+            
+            gsap.to('#stepDesc', { opacity: 0, duration: 0.3, onComplete: () => {
+                document.getElementById('stepDesc').textContent = step.desc;
+                gsap.to('#stepDesc', { opacity: 1, duration: 0.3 });
+            }});
+            
+            // Update step indicators
+            document.querySelectorAll('.step-dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === stepIndex);
+            });
+            
+            // Camera movement
+            gsap.to(camera.position, {
+                x: step.camera.x,
+                y: step.camera.y,
+                z: step.camera.z,
+                duration: 1.5,
+                ease: "power2.inOut"
+            });
+            
+            // Step-specific animations
+            switch(stepIndex) {
+                case 0: animateStep0(); break;
+                case 1: animateStep1(); break;
+                case 2: animateStep2(); break;
+                case 3: animateStep3(); break;
+                case 4: animateStep4(); break;
+            }
+            
+            // Update buttons
+            document.getElementById('prevBtn').disabled = stepIndex === 0;
+            document.getElementById('nextBtn').textContent = stepIndex === 4 ? 'Restart ↺' : 'Next →';
+            
+            // Show/hide result panel
+            document.getElementById('resultPanel').classList.toggle('visible', stepIndex === 4);
+        }
+        
+        function animateStep0() {
+            // Reset all
+            companies.forEach(company => {
+                gsap.to(company.codeBox.material, { opacity: 0, duration: 0.5 });
+                gsap.to(company.resultPacket.material, { opacity: 0, duration: 0.5 });
+                gsap.to(company.dataOrb.position, { y: 0, duration: 0.5 });
+                company.dataOrb.visible = true;
+                
+                // Pulse the data orbs to show they have data
+                gsap.to(company.dataOrb.scale, {
+                    x: 1.3, y: 1.3, z: 1.3,
+                    duration: 0.5,
+                    yoyo: true,
+                    repeat: 3,
+                    ease: "power1.inOut"
+                });
+            });
+            
+            // Shake buildings slightly (they're protective)
+            companies.forEach((company, i) => {
+                gsap.to(company.building.rotation, {
+                    y: 0.1,
+                    duration: 0.1,
+                    delay: i * 0.1,
+                    yoyo: true,
+                    repeat: 5
+                });
+            });
+        }
+        
+        function animateStep1() {
+            // Show code boxes flying down to companies
+            companies.forEach((company, i) => {
+                // Reset position above
+                company.codeBox.position.set(company.position.x, 10, company.position.z);
+                company.codeBox.material.opacity = 1;
+                
+                // Animate down
+                gsap.to(company.codeBox.position, {
+                    y: 3,
+                    duration: 1.5,
+                    delay: i * 0.2,
+                    ease: "bounce.out"
+                });
+            });
+        }
+        
+        function animateStep2() {
+            // Code boxes enter buildings, data orbs pulse
+            companies.forEach((company, i) => {
+                // Code enters building
+                gsap.to(company.codeBox.position, {
+                    y: 0,
+                    duration: 1,
+                    delay: i * 0.15,
+                    ease: "power2.in"
+                });
+                
+                // Data orb processing animation
+                gsap.to(company.dataOrb.material, {
+                    emissiveIntensity: 1,
+                    duration: 0.3,
+                    delay: i * 0.15 + 1,
+                    yoyo: true,
+                    repeat: 5
+                });
+                
+                // Building glows during processing
+                gsap.to(company.building.material, {
+                    emissive: new THREE.Color(0x00d9ff),
+                    emissiveIntensity: 0.3,
+                    duration: 0.5,
+                    delay: i * 0.15 + 1,
+                    yoyo: true,
+                    repeat: 3
+                });
+            });
+        }
+        
+        function animateStep3() {
+            // Result packets appear and start rising
+            companies.forEach((company, i) => {
+                // Hide code box
+                gsap.to(company.codeBox.material, { opacity: 0, duration: 0.3 });
+                
+                // Show result packet
+                company.resultPacket.position.set(company.position.x, 0, company.position.z);
+                gsap.to(company.resultPacket.material, { opacity: 1, duration: 0.5, delay: i * 0.2 });
+                
+                // Rise up
+                gsap.to(company.resultPacket.position, {
+                    y: 3,
+                    duration: 1,
+                    delay: i * 0.2,
+                    ease: "power2.out"
+                });
+            });
+        }
+        
+        function animateStep4() {
+            // Packets fly to server and merge
+            companies.forEach((company, i) => {
+                // Fly to server
+                gsap.to(company.resultPacket.position, {
+                    x: 0,
+                    y: 2,
+                    z: 5,
+                    duration: 1.5,
+                    delay: i * 0.3,
+                    ease: "power2.inOut",
+                    onComplete: () => {
+                        // Fade out packet
+                        gsap.to(company.resultPacket.material, { opacity: 0, duration: 0.3 });
+                        
+                        // Pulse server
+                        gsap.to(server.scale, {
+                            x: 1.2, y: 1.2, z: 1.2,
+                            duration: 0.2,
+                            yoyo: true,
+                            repeat: 1
+                        });
+                    }
+                });
+            });
+            
+            // Server glow intensifies
+            gsap.to(server.material, {
+                emissiveIntensity: 0.8,
+                duration: 2,
+                delay: 2
+            });
+        }
+        
+        // =====================
+        // NAVIGATION
+        // =====================
+        
+        function startPresentation() {
+            gsap.to('#introScreen', { 
+                opacity: 0, 
+                duration: 0.5, 
+                onComplete: () => {
+                    document.getElementById('introScreen').style.display = 'none';
+                    document.getElementById('stepIndicator').style.display = 'flex';
+                    document.getElementById('navButtons').style.display = 'flex';
+                    animateStep(0);
+                }
+            });
+        }
+        
+        function nextStep() {
+            if (currentStep === 4) {
+                currentStep = 0;
+            } else {
+                currentStep++;
+            }
+            animateStep(currentStep);
+        }
+        
+        function prevStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                animateStep(currentStep);
+            }
+        }
+        
+        function goToStep(step) {
+            currentStep = step;
+            animateStep(step);
+        }
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextStep();
+            if (e.key === 'ArrowLeft') prevStep();
+        });
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>
